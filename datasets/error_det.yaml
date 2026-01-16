@@ -1,0 +1,12 @@
+path: #dataset root dir
+train: #train images (relative to 'path') 
+val: #val images (relative to 'path') 
+test: #test images 
+
+names:
+  0: over extrusion
+  1: under extrusion
+  2: stringing
+  3: spaghetti
+
+
