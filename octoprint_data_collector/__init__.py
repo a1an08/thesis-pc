@@ -59,7 +59,7 @@ class DataCollectorPlugin(
     # ─────────────────────────────
 
     def on_event(self, event, payload):
-        if event == octoprint.events.Events.PRINT_STARTED:
+        if event == octoprint.events.Events.Startup:
             self._start_capture()
 
         elif event in (
