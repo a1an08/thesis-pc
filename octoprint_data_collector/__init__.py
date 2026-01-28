@@ -5,16 +5,16 @@ import os
 import csv
 import requests
 
-
 class DataCollectorPlugin(
     octoprint.plugin.StartupPlugin,
     octoprint.plugin.ShutdownPlugin,
-    octoprint.plugin.EventHandlerPlugin,
+    octoprint.plugin.SettingsPlugin,
+    octoprint.plugin.TemplatePlugin,
     octoprint.plugin.WebcamPluginMixin
 ):
 
     def __init__(self):
-        self._capture_interval = 2.0  # seconds (N)
+        self._capture_interval = 2.0  # seconds
         self._timer = None
         self._running = False
 
@@ -25,11 +25,8 @@ class DataCollectorPlugin(
     # ─────────────────────────────
     # Startup / Shutdown
     # ─────────────────────────────
-
     def on_after_startup(self):
-        self._base_dir = os.path.join(
-            self.get_plugin_data_folder(), "data"
-        )
+        self._base_dir = os.path.join(self.get_plugin_data_folder(), "data")
         self._image_dir = os.path.join(self._base_dir, "images")
         self._csv_path = os.path.join(self._base_dir, "log.csv")
 
@@ -39,7 +36,10 @@ class DataCollectorPlugin(
             with open(self._csv_path, "w", newline="") as f:
                 writer = csv.writer(f)
                 writer.writerow([
-                    "timestamp",
+                    "frame_id",
+                    "request_ts",
+                    "capture_ts",
+                    "sensor_ts",
                     "image_path",
                     "x",
                     "y",
@@ -50,91 +50,81 @@ class DataCollectorPlugin(
                 ])
 
         self._logger.info("DataCollectorPlugin initialized")
+        self._start_capture_loop()  # start polling immediately
 
     def on_shutdown(self):
-        self._stop_capture()
+        self._stop_capture_loop()
 
     # ─────────────────────────────
-    # Event Handling
+    # Timer Loop for Polling
     # ─────────────────────────────
-
-    def on_event(self, event, payload):
-        if event == octoprint.events.Events.Startup:
-            self._start_capture()
-
-        elif event in (
-            octoprint.events.Events.PRINT_DONE,
-            octoprint.events.Events.PRINT_FAILED,
-            octoprint.events.Events.PRINT_CANCELLED
-        ):
-            self._stop_capture()
-
-    # ─────────────────────────────
-    # Capture Loop
-    # ─────────────────────────────
-
-    def _start_capture(self):
+    def _start_capture_loop(self):
         if self._running:
             return
-
         self._running = True
         self._schedule_next()
-        self._logger.info("Started data capture")
 
-    def _stop_capture(self):
+    def _stop_capture_loop(self):
         self._running = False
         if self._timer:
             self._timer.cancel()
-        self._logger.info("Stopped data capture")
 
     def _schedule_next(self):
         if not self._running:
             return
-
-        self._timer = threading.Timer(
-            self._capture_interval, self._capture_step
-        )
+        self._timer = threading.Timer(self._capture_interval, self._poll_and_capture)
         self._timer.start()
 
-    def _capture_step(self):
+    def _poll_and_capture(self):
         try:
-            self._capture_snapshot()
+            printer_data = self._printer.get_current_data()
+            state = printer_data["state"]["text"].lower()
+            if state == True:#"printing":
+                self._capture_snapshot()
         except Exception as e:
-            self._logger.error(f"Capture error: {e}")
-
-        self._schedule_next()
+            self._logger.error(f"Polling/capture error: {e}")
+        finally:
+            self._schedule_next()
 
     # ─────────────────────────────
-    # Snapshot + Logging
+    # Snapshot + Sensor Logging
     # ─────────────────────────────
-
     def _capture_snapshot(self):
-        timestamp = time.time()  # Unix epoch
+        request_ts = time.time()  # When snapshot is requested
 
         snapshot_url = self.get_webcam_snapshot_url()
         if not snapshot_url:
-            self._logger.warning("No webcam snapshot URL")
+            self._logger.warning("No webcam snapshot URL available")
             return
 
-        response = requests.get(snapshot_url, timeout=5)
-        if response.status_code != 200:
-            self._logger.warning("Failed to fetch snapshot")
+        try:
+            response = requests.get(snapshot_url, timeout=5)
+        except Exception as e:
+            self._logger.warning(f"Failed to fetch snapshot: {e}")
             return
 
-        filename = f"{int(timestamp * 1000)}.jpg"
+        response_ts = time.time()  # When snapshot received
+
+        # Attempt to get capture time from headers (if supported)
+        capture_ts = response.headers.get("X-Timestamp")
+        if capture_ts:
+            capture_ts = float(capture_ts)
+        else:
+            capture_ts = (request_ts + response_ts) / 2  # best estimate
+
+        # Save image
+        frame_id = int(capture_ts * 1000)
+        filename = f"{frame_id}.jpg"
         image_path = os.path.join(self._image_dir, filename)
 
         with open(image_path, "wb") as f:
             f.write(response.content)
 
         # ───────── Printer position ─────────
-        data = self._printer.get_current_data()
-        pos = data["currentZ"] if data else None
         coords = self._printer.get_current_position()
-
-        x = coords["x"] if coords else None
-        y = coords["y"] if coords else None
-        z = coords["z"] if coords else None
+        x = coords.get("x") if coords else None
+        y = coords.get("y") if coords else None
+        z = coords.get("z") if coords else None
 
         # ───────── Temperatures ─────────
         temps = self._printer.get_current_temperatures()
@@ -142,13 +132,17 @@ class DataCollectorPlugin(
         bed_temp = temps["bed"]["actual"] if "bed" in temps else None
 
         # ───────── Sensor placeholder ─────────
+        sensor_ts = time.time()
         vibration = self._read_vibration_sensor()
 
         # ───────── Log CSV ─────────
         with open(self._csv_path, "a", newline="") as f:
             writer = csv.writer(f)
             writer.writerow([
-                timestamp,
+                frame_id,
+                request_ts,
+                capture_ts,
+                sensor_ts,
                 image_path,
                 x,
                 y,
@@ -161,17 +155,8 @@ class DataCollectorPlugin(
     # ─────────────────────────────
     # External Sensor Stub
     # ─────────────────────────────
-
     def _read_vibration_sensor(self):
-        """
-        Replace this with:
-        - serial read
-        - socket
-        - shared memory
-        - file read
-        """
         return 0.0  # placeholder
-
 
 # ─────────────────────────────
 # Plugin Metadata
