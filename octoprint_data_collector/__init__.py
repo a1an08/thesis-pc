@@ -79,7 +79,9 @@ class DataCollectorPlugin(
         try:
             printer_data = self._printer.get_current_data()
             state = printer_data["state"]["text"].lower()
-            if state == True:#"printing":
+
+            force = self._settings.get_boolean("dev_force_printing")
+            if state == "printing" or force:
                 self._capture_snapshot()
         except Exception as e:
             self._logger.error(f"Polling/capture error: {e}")
@@ -157,6 +159,14 @@ class DataCollectorPlugin(
     # ─────────────────────────────
     def _read_vibration_sensor(self):
         return 0.0  # placeholder
+    
+    def get_settings_defaults(self):
+    return dict(
+        capture_interval=2.0,
+        enabled=True,
+        dev_force_printing=False
+    )
+
 
 # ─────────────────────────────
 # Plugin Metadata
