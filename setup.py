@@ -2,7 +2,7 @@ from setuptools import setup
 
 plugin_identifier = "data_collector"
 plugin_package = "octoprint_data_collector"
-plugin_name = "OctoPrint-Data-Collector"
+plugin_name = "Data-Collector"
 plugin_version = "0.1.0"
 plugin_description = "Captures webcam snapshots and logs printer data for ML dataset collection"
 plugin_author = "aln"
