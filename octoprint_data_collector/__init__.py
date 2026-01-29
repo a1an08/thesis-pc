@@ -1,4 +1,5 @@
 import octoprint.plugin
+import octoprint.printer
 import time
 import threading
 import os
@@ -10,7 +11,9 @@ class DataCollectorPlugin(
     octoprint.plugin.ShutdownPlugin,
     octoprint.plugin.SettingsPlugin,
     octoprint.plugin.TemplatePlugin,
-    octoprint.plugin.WebcamProviderPlugin
+    octoprint.plugin.WebcamProviderPlugin,
+    octoprint.printer.PrinterInterface
+
 ):
 
     def __init__(self):
@@ -77,12 +80,13 @@ class DataCollectorPlugin(
 
     def _poll_and_capture(self):
         try:
+            
             printer_data = self._printer.get_current_data()
-            state = printer_data["state"]["text"].lower()
-            state = printing
+            state = PRINTING
+            if state == "PRINTING":
+                printer_cameras =  get_webcam_configurations()
+                self.take_webcam_snapshot(printer_cameras[0])
 
-            if state == "printing":
-                self._capture_snapshot()
         except Exception as e:
             self._logger.error(f"Polling/capture error: {e}")
         finally:
