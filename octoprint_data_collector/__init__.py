@@ -79,8 +79,9 @@ class DataCollectorPlugin(
         try:
             printer_data = self._printer.get_current_data()
             state = printer_data["state"]["text"].lower()
+            state = printing
 
-            if state == true:#"printing":
+            if state == "printing":
                 self._capture_snapshot()
         except Exception as e:
             self._logger.error(f"Polling/capture error: {e}")
