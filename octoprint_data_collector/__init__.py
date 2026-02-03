@@ -26,12 +26,29 @@ class DataCollectorPlugin(
         self._csv_path = None
 
     # ─────────────────────────────
+    # Helper functions
+    # ─────────────────────────────
+
+    #delete later if not needed
+    def get_printer_info(profile, info_path, default="Offline"):
+        current = profile
+        _MISSING = object()
+        for key in info_path:
+            if not isinstance(current, dict):
+                return default
+            current = current.get(key, _MISSING)
+            if current is _MISSING:
+                return default
+        return current
+
+    # ─────────────────────────────
     # Startup / Shutdown
     # ─────────────────────────────
     def on_after_startup(self):
         self._base_dir = os.path.join(self.get_plugin_data_folder(), "data")
         self._image_dir = os.path.join(self._base_dir, "images")
         self._csv_path = os.path.join(self._base_dir, "log.csv")
+        self._logger.error(f"Data directory: {self._base_dir}    ")
 
         os.makedirs(self._image_dir, exist_ok=True)
 
@@ -82,13 +99,17 @@ class DataCollectorPlugin(
         try:
             
             printer_data = self._printer.get_current_data()
-            state = PRINTING
-            if state == "PRINTING":
-                printer_cameras =  get_webcam_configurations()
+            #self._logger.error(f"printer data: {printer_data}")
+            state = printer_data["state"]["text"]
+            self._logger.error(f"data: {state}")
+            if state == "Offline":
+                printer_cameras =  self.get_webcam_configurations()
+                self._logger.error(f"CAMERAS: {printer_cameras}")
                 self.take_webcam_snapshot(printer_cameras[0])
 
         except Exception as e:
             self._logger.error(f"Polling/capture error: {e}")
+            
         finally:
             self._schedule_next()
 
