@@ -10,8 +10,7 @@ class DataCollectorPlugin(
     octoprint.plugin.StartupPlugin,
     octoprint.plugin.ShutdownPlugin,
     octoprint.plugin.SettingsPlugin,
-    octoprint.plugin.TemplatePlugin,
-    octoprint.plugin.WebcamProviderPlugin,
+    octoprint.plugin.TemplatePlugin
 ):
 
     def __init__(self):
@@ -38,25 +37,6 @@ class DataCollectorPlugin(
             if current is _MISSING:
                 return default
         return current
-
-    def get_webcam_configurations(self):
-        return [
-            Webcam(
-                name="cam",
-                displayName="bestCam",
-                canSnapshot=True,
-                snapshotDisplay="Internal Testimage",
-                compat=WebcamCompatibility(
-                    snapshot="http://m4bp-octopi.local/webcam/?action=snapshot",
-                    stream="http://m4bp-octopi.local/webcam/?action=stream",
-                ),
-            )
-        ]
-
-    def take_webcam_snapshot(self, webcamName):
-        return [
-            self._get_snapshot(),
-        ]
 
     # ─────────────────────────────
     # Startup / Shutdown
@@ -132,30 +112,35 @@ class DataCollectorPlugin(
     # Snapshot + Sensor Logging
     # ─────────────────────────────
     def _capture_snapshot(self):
-        webcams = self.get_webcam_configurations()
-        if not webcams:
-            self._logger.warning("No webcams configured")
+        request_ts = time.time()  # When snapshot is requested
+
+        snapshot_url = "http://m4bp-octopi.local/webcam/?action=snapshot"
+        if not snapshot_url:
+            self._logger.warning("No webcam snapshot URL available")
             return
 
-        webcam_name = webcams[0].name  # use first available webcam
-
-        request_ts = time.time()
         try:
-            jpeg_iter = self.take_webcam_snapshot(webcam_name)
-            jpeg_bytes = b"".join(jpeg_iter)
+            response = requests.get(snapshot_url, timeout=5)
         except Exception as e:
-            self._logger.warning(f"Failed to take webcam snapshot: {e}")
+            self._logger.warning(f"Failed to fetch snapshot: {e}")
             return
-        response_ts = time.time()
-        capture_ts = (request_ts + response_ts) / 2
 
+        response_ts = time.time()  # When snapshot received
+
+        # Attempt to get capture time from headers (if supported)
+        capture_ts = response.headers.get("X-Timestamp")
+        if capture_ts:
+            capture_ts = float(capture_ts)
+        else:
+            capture_ts = (request_ts + response_ts) / 2  # best estimate
+
+        # Save image
         frame_id = int(capture_ts * 1000)
         filename = f"{frame_id}.jpg"
         image_path = os.path.join(self._image_dir, filename)
 
-        # Save image locally
         with open(image_path, "wb") as f:
-            f.write(jpeg_bytes)
+            f.write(response.content)
 
         # ───────── Printer position ─────────
         coords = self._printer.get_current_position()
