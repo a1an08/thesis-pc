@@ -10,7 +10,8 @@ class DataCollectorPlugin(
     octoprint.plugin.StartupPlugin,
     octoprint.plugin.ShutdownPlugin,
     octoprint.plugin.SettingsPlugin,
-    octoprint.plugin.TemplatePlugin
+    octoprint.plugin.TemplatePlugin,
+    octoprint.plugin.WebcamProviderPlugin,
 ):
 
     def __init__(self):
