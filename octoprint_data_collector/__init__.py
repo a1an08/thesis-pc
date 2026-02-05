@@ -39,6 +39,25 @@ class DataCollectorPlugin(
                 return default
         return current
 
+    def get_webcam_configurations(self):
+        return [
+            Webcam(
+                name="cam",
+                displayName="bestCam",
+                canSnapshot=True,
+                snapshotDisplay="Internal Testimage",
+                compat=WebcamCompatibility(
+                    snapshot="http://m4bp-octopi.local/webcam/?action=snapshot",
+                    stream="http://m4bp-octopi.local/webcam/?action=stream",
+                ),
+            )
+        ]
+
+    def take_webcam_snapshot(self, webcamName):
+        return [
+            self._get_snapshot(),
+        ]
+
     # ─────────────────────────────
     # Startup / Shutdown
     # ─────────────────────────────
