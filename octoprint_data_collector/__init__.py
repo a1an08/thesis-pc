@@ -53,17 +53,17 @@ class DataCollectorPlugin(
             with open(self._csv_path, "w", newline="") as f:
                 writer = csv.writer(f)
                 writer.writerow([
-                    "frame_id",
-                    "request_ts",
-                    "capture_ts",
-                    "sensor_ts",
-                    "image_path",
-                    "x",
-                    "y",
-                    "z",
-                    "nozzle_temp",
-                    "bed_temp",
-                    "vibration"
+                    frame_id,
+                    request_ts,
+                    capture_ts,
+                    #sensor_ts,
+                    image_path#,
+                    #x,
+                    #y,
+                    #z,
+                    #nozzle_temp,
+                    #bed_temp,
+                    #vibration
                 ])
 
         self._logger.info("DataCollectorPlugin initialized")
@@ -157,8 +157,6 @@ class DataCollectorPlugin(
         sensor_ts = time.time()
         vibration = self._read_vibration_sensor()
 """
-        x, y, z = None, None, None
-        nozzle_temp, bed_temp, vibration = None, None, None
         # ───────── Log CSV ─────────
         with open(self._csv_path, "a", newline="") as f:
             writer = csv.writer(f)
@@ -166,14 +164,14 @@ class DataCollectorPlugin(
                 frame_id,
                 request_ts,
                 capture_ts,
-                sensor_ts,
-                image_path,
-                x,
-                y,
-                z,
-                nozzle_temp,
-                bed_temp,
-                vibration
+                #sensor_ts,
+                image_path#,
+                #x,
+                #y,
+                #z,
+                #nozzle_temp,
+                #bed_temp,
+                #vibration
             ])
 
     # ─────────────────────────────
