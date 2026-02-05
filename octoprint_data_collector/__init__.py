@@ -158,7 +158,7 @@ class DataCollectorPlugin(
                 request_ts,
                 capture_ts,
                 image_path
-            ])
+                ])
 
     # ─────────────────────────────
     # External Sensor Stub
