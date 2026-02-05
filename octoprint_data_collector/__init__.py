@@ -56,14 +56,7 @@ class DataCollectorPlugin(
                     "frame_id",
                     "request_ts",
                     "capture_ts",
-                    #"sensor_ts",
-                    "image_path"#,
-                    #"x",
-                    #"y",
-                    #"z",
-                    #"nozzle_temp",
-                    #"bed_temp",
-                    #"vibration"
+                    "image_path"
                 ])
 
         self._logger.info("DataCollectorPlugin initialized")
@@ -164,14 +157,7 @@ class DataCollectorPlugin(
                 frame_id,
                 request_ts,
                 capture_ts,
-                #sensor_ts,
-                image_path#,
-                #x,
-                #y,
-                #z,
-                #nozzle_temp,
-                #bed_temp,
-                #vibration
+                image_path
             ])
 
     # ─────────────────────────────
