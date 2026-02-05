@@ -10,10 +10,7 @@ class DataCollectorPlugin(
     octoprint.plugin.StartupPlugin,
     octoprint.plugin.ShutdownPlugin,
     octoprint.plugin.SettingsPlugin,
-    octoprint.plugin.TemplatePlugin,
-    octoprint.plugin.WebcamProviderPlugin,
-    octoprint.printer.PrinterInterface
-
+    octoprint.plugin.TemplatePlugin
 ):
 
     def __init__(self):
@@ -103,10 +100,8 @@ class DataCollectorPlugin(
             state = printer_data["state"]["text"]
             self._logger.error(f"data: {state}")
             if state == "Offline":
-                printer_cameras =  self.get_webcam_configurations()
-                self._logger.error(f"CAMERAS: {printer_cameras}")
-                self.take_webcam_snapshot(printer_cameras[0])
-
+                self._capture_snapshot()
+                
         except Exception as e:
             self._logger.error(f"Polling/capture error: {e}")
             
