@@ -53,17 +53,17 @@ class DataCollectorPlugin(
             with open(self._csv_path, "w", newline="") as f:
                 writer = csv.writer(f)
                 writer.writerow([
-                    frame_id,
-                    request_ts,
-                    capture_ts,
-                    #sensor_ts,
-                    image_path#,
-                    #x,
-                    #y,
-                    #z,
-                    #nozzle_temp,
-                    #bed_temp,
-                    #vibration
+                    "frame_id",
+                    "request_ts",
+                    "capture_ts",
+                    #"sensor_ts",
+                    "image_path"#,
+                    #"x",
+                    #"y",
+                    #"z",
+                    #"nozzle_temp",
+                    #"bed_temp",
+                    #"vibration"
                 ])
 
         self._logger.info("DataCollectorPlugin initialized")
