@@ -134,22 +134,7 @@ class DataCollectorPlugin(
 
         with open(image_path, "wb") as f:
             f.write(response.content)
-"""
-        # ───────── Printer position ─────────
-        coords = self._printer.get_current_position()
-        x = coords.get("x") if coords else None
-        y = coords.get("y") if coords else None
-        z = coords.get("z") if coords else None
-
-        # ───────── Temperatures ─────────
-        temps = self._printer.get_current_temperatures()
-        nozzle_temp = temps["tool0"]["actual"] if "tool0" in temps else None
-        bed_temp = temps["bed"]["actual"] if "bed" in temps else None
-
-        # ───────── Sensor placeholder ─────────
-        sensor_ts = time.time()
-        vibration = self._read_vibration_sensor()
-"""
+            
         # ───────── Log CSV ─────────
         with open(self._csv_path, "a", newline="") as f:
             writer = csv.writer(f)
