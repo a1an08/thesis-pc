@@ -44,7 +44,7 @@ class DataCollectorPlugin(
         if not os.path.exists(self._csv_path):
             with open(self._csv_path, "w", newline="") as f:
                 writer = csv.writer(f)
-                writer.writerow(["frame_id", "request_ts", "capture_ts", "filename"])
+                writer.writerow(["frame_id", "request_ts", "capture_ts", "image_path"])
 
         self._logger.info(f"DataCollector initialized. Logging to: {self._base_dir}")
         self._start_worker()
@@ -148,7 +148,7 @@ class DataCollectorPlugin(
                     frame_id,
                     "{:.6f}".format(request_ts),
                     "{:.6f}".format(capture_ts),
-                    filename
+                    image_path
                 ])
         except Exception as e:
             self._logger.error(f"CSV Write Failed: {e}")
