@@ -1,10 +1,13 @@
+# coding=utf-8
+from __future__ import absolute_import
+
 import octoprint.plugin
-import octoprint.printer
 import time
 import threading
 import os
 import csv
 import requests
+import shutil
 
 class DataCollectorPlugin(
     octoprint.plugin.StartupPlugin,
@@ -14,147 +17,146 @@ class DataCollectorPlugin(
 ):
 
     def __init__(self):
-        self._capture_interval = 2.0  # seconds
-        self._timer = None
+        self._capture_interval = 2.0  # Seconds between captures
         self._running = False
-
+        self._worker_thread = None
+        
+        # Internal URL
+        self._snapshot_url = "http://127.0.0.1:8080/?action=snapshot"
+        
         self._base_dir = None
         self._image_dir = None
         self._csv_path = None
 
     # ─────────────────────────────
-    # Helper functions
-    # ─────────────────────────────
-
-    #delete later if not needed
-    def get_printer_info(profile, info_path, default="Offline"):
-        current = profile
-        _MISSING = object()
-        for key in info_path:
-            if not isinstance(current, dict):
-                return default
-            current = current.get(key, _MISSING)
-            if current is _MISSING:
-                return default
-        return current
-
-    # ─────────────────────────────
     # Startup / Shutdown
     # ─────────────────────────────
     def on_after_startup(self):
+        # Set up directories in the standard Plugin Data folder
         self._base_dir = os.path.join(self.get_plugin_data_folder(), "data")
         self._image_dir = os.path.join(self._base_dir, "images")
         self._csv_path = os.path.join(self._base_dir, "log.csv")
-        self._logger.error(f"Data directory: {self._base_dir}    ")
 
-        os.makedirs(self._image_dir, exist_ok=True)
+        if not os.path.exists(self._image_dir):
+            os.makedirs(self._image_dir)
 
+        # Initialize CSV with headers if it doesn't exist
         if not os.path.exists(self._csv_path):
             with open(self._csv_path, "w", newline="") as f:
                 writer = csv.writer(f)
-                writer.writerow([
-                    "frame_id",
-                    "request_ts",
-                    "capture_ts",
-                    "image_path"
-                ])
+                writer.writerow(["frame_id", "request_ts", "capture_ts", "filename"])
 
-        self._logger.info("DataCollectorPlugin initialized")
-        self._start_capture_loop()  # start polling immediately
+        self._logger.info(f"DataCollector initialized. Logging to: {self._base_dir}")
+        self._start_worker()
 
     def on_shutdown(self):
-        self._stop_capture_loop()
+        self._logger.info("DataCollector shutting down...")
+        self._running = False
+        if self._worker_thread and self._worker_thread.is_alive():
+            self._worker_thread.join(timeout=2.0)
 
     # ─────────────────────────────
-    # Timer Loop for Polling
+    # Worker Thread
     # ─────────────────────────────
-    def _start_capture_loop(self):
+    def _start_worker(self):
         if self._running:
             return
+
         self._running = True
-        self._schedule_next()
+        # jic OctoPrint crashes, daemon stops
+        self._worker_thread = threading.Thread(target=self._worker_loop, daemon=True)
+        self._worker_thread.start()
 
-    def _stop_capture_loop(self):
-        self._running = False
-        if self._timer:
-            self._timer.cancel()
+    def _worker_loop(self):
+        self._logger.info("DataCollector worker thread started.")
+        
+        while self._running:
+            start_time = time.time()
 
-    def _schedule_next(self):
-        if not self._running:
-            return
-        self._timer = threading.Timer(self._capture_interval, self._poll_and_capture)
-        self._timer.start()
+            try:
+                self._check_and_capture()
+            except Exception as e:
+                self._logger.error(f"Error in capture loop: {e}")
 
-    def _poll_and_capture(self):
-        try:
+            # Calculate how long the work took
+            elapsed = time.time() - start_time
             
-            printer_data = self._printer.get_current_data()
-            #self._logger.error(f"printer data: {printer_data}")
-            state = printer_data["state"]["text"]
-            self._logger.error(f"data: {state}")
-            if state == "Offline":
-                self._capture_snapshot()
-                
-        except Exception as e:
-            self._logger.error(f"Polling/capture error: {e}")
-            
-        finally:
-            self._schedule_next()
+            # Calculate exact sleep needed to maintain the 2.0s interval
+            sleep_time = self._capture_interval - elapsed
+
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+            else:
+                self._logger.warning(f"Capture took too long ({elapsed:.2f}s)! Skipping sleep to catch up.")
 
     # ─────────────────────────────
-    # Snapshot + Sensor Logging
+    # Logic & Safety Checks
+    # ─────────────────────────────
+    def _check_and_capture(self):
+        # Stop if disk is full (currently set to < 500MB free)
+        total, used, free = shutil.disk_usage(self._base_dir)
+        if free < (500 * 1024 * 1024): 
+            if self._running:
+                self._logger.critical("DISK ALMOST FULL (<500MB). Stopping DataCollector.")
+                self._running = False
+            return
+
+        #Check Printer State
+        printer_data = self._printer.get_current_data()
+        state = "Offline"#printer_data["state"]["text"]
+        
+        valid_states = ["Printing", "Offline"] 
+        if state in valid_states:
+            self._capture_snapshot()
+
+    # ─────────────────────────────
+    # Capture & Log (Epoch Time)
     # ─────────────────────────────
     def _capture_snapshot(self):
-        request_ts = time.time()  # When snapshot is requested
-
-        snapshot_url = "http://m4bp-octopi.local/webcam/?action=snapshot"
-        if not snapshot_url:
-            self._logger.warning("No webcam snapshot URL available")
-            return
+        request_ts = time.time() 
 
         try:
-            response = requests.get(snapshot_url, timeout=5)
+            # stream=True reduces memory spike
+            response = requests.get(self._snapshot_url, timeout=2.0, stream=True)
+            if response.status_code != 200:
+                self._logger.warning(f"Snapshot failed: HTTP {response.status_code}")
+                return
         except Exception as e:
-            self._logger.warning(f"Failed to fetch snapshot: {e}")
-            return
+            return 
 
-        response_ts = time.time()  # When snapshot received
-
-        # Attempt to get capture time from headers (if supported)
-        capture_ts = response.headers.get("X-Timestamp")
-        if capture_ts:
-            capture_ts = float(capture_ts)
-        else:
-            capture_ts = (request_ts + response_ts) / 2  # best estimate
-
-        # Save image
+        response_ts = time.time()
+        
+        # Estimate the actual hardware capture time (midpoint of request)
+        capture_ts = (request_ts + response_ts) / 2
+        
+        # Generate id based on timestamp
         frame_id = int(capture_ts * 1000)
+        
         filename = f"{frame_id}.jpg"
         image_path = os.path.join(self._image_dir, filename)
 
+        # Save Image
         with open(image_path, "wb") as f:
-            f.write(response.content)
-            
-        # ───────── Log CSV ─────────
-        with open(self._csv_path, "a", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                frame_id,
-                request_ts,
-                capture_ts,
-                image_path
-            ])
+            for chunk in response.iter_content(chunk_size=4096):
+                f.write(chunk)
 
-    # ─────────────────────────────
-    # External Sensor Stub
-    # ─────────────────────────────
-    def _read_vibration_sensor(self):
-        return 0.0  # placeholder
-    
+        # Log csv
+        try:
+            with open(self._csv_path, "a", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    frame_id,
+                    "{:.6f}".format(request_ts),
+                    "{:.6f}".format(capture_ts),
+                    filename
+                ])
+        except Exception as e:
+            self._logger.error(f"CSV Write Failed: {e}")
 
 # ─────────────────────────────
 # Plugin Metadata
 # ─────────────────────────────
 
+__plugin_name__ = "Data Collector"
 __plugin_pythoncompat__ = ">=3.7,<4"
 __plugin_implementation__ = DataCollectorPlugin()
