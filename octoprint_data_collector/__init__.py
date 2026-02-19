@@ -164,7 +164,7 @@ class DataCollectorPlugin(
         if state in ["Printing"]:
             self._save_snapshot()
 
-def _save_snapshot(self):
+    def _save_snapshot(self):
         start_time = time.time()
         filename = "ERROR_NOT_TAKEN.jpg"
         
