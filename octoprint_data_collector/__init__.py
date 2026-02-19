@@ -89,8 +89,8 @@ class DataCollectorPlugin(
         self._data_lock = threading.Lock()
               
         self._latest_data = { 
-            "adxl1": 0.0,
-            "adxl2": 0.0,
+            "adxl1": {"x": 0.0, "y": 0.0, "z": 0.0},
+            "adxl2": {"x": 0.0, "y": 0.0, "z": 0.0},
             "load_cell": 0.0
         }
         
@@ -199,6 +199,10 @@ class DataCollectorPlugin(
                 
                 a1 = values.get("adxl1", {"x": 0, "y": 0, "z": 0}) 
                 a2 = values.get("adxl2", {"x": 0, "y": 0, "z": 0})
+
+                if not isinstance(a1, dict): a1 = {"x": 0, "y": 0, "z": 0}
+                if not isinstance(a2, dict): a2 = {"x": 0, "y": 0, "z": 0}
+                
                 row = [
                     frame_id,
                     "{:.6f}".format(timestamp),
@@ -211,7 +215,7 @@ class DataCollectorPlugin(
                 writer.writerow(row)
                 self._logger.info(f"output: {row}")
 
-        except Exception:
+        except Exception as e:
             self._logger.error(f"Failed to write to CSV Error: {e}")
 
 __plugin_name__ = "Data Collector"
