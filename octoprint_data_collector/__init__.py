@@ -47,24 +47,38 @@ class SerialSensorReader(threading.Thread):
 
                         if last_line.startswith('{') and last_line.endswith('}'):
                             data = json.loads(last_line)
-                            
-                            # sort id sensors and update mailbox
-                            sensor_id = data.get("id")
 
-                            x = float(data.get("x", 0.0))
-                            y = float(data.get("y", 0.0))
-                            z = float(data.get("z", 0.0))
+                            current_time = time.time()
+                            sensor_id = data.get("id")
 
                             with self._lock:
                                 if sensor_id == "adxl1":
-                                    self._shared_data["adxl1"] = {"x": x, "y": y, "z": z}
-                                elif sensor_id == "adxl2":
-                                    self._shared_data["adxl2"] = {"x": x, "y": y, "z": z}  
-                                elif sensor_id == "load":
-                                    self._shared_data["load_cell"] = float(data.get("val", 0.0))
+                                    self._shared_data["adxl1"].append({
+                                        "ts": current_time, 
+                                        "x": float(data.get("x", 0.0)), 
+                                        "y": float(data.get("y", 0.0)), 
+                                        "z": float(data.get("z", 0.0))
+                                    })
+                                    if len(self._shared_data["adxl1"]) > 100: self._shared_data["adxl1"].pop(0)
                                     
-                    except Exception:
-                        pass
+                                elif sensor_id == "adxl2":
+                                    self._shared_data["adxl2"].append({
+                                        "ts": current_time, 
+                                        "x": float(data.get("x", 0.0)), 
+                                        "y": float(data.get("y", 0.0)), 
+                                        "z": float(data.get("z", 0.0))
+                                    })
+                                    if len(self._shared_data["adxl2"]) > 100: self._shared_data["adxl2"].pop(0)
+                                    
+                                elif sensor_id == "load":
+                                    self._shared_data["load_cell"].append({
+                                        "ts": current_time, 
+                                        "val": float(data.get("val", 0.0))
+                                    })
+                                    if len(self._shared_data["load_cell"]) > 100: self._shared_data["load_cell"].pop(0)
+                                    
+                    except Exception as e:
+                        self._logger.warning(f"Error processing sensor data: {e}")
                 
                 time.sleep(0.01) # important 
 
