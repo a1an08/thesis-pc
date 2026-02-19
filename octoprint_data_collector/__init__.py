@@ -165,8 +165,8 @@ class DataCollectorPlugin(
     def _check_and_capture(self, values):
         # check printer state
         printer_data = self._printer.get_current_data()
-        state = printer_data["state"]["text"]
-        if state in ["Printing", "Operational", "Paused"]:
+        state = "Printing"#printer_data["state"]["text"]
+        if state in ["Printing"]:
             self._save_snapshot(values)
 
     def _save_snapshot(self, values):
@@ -190,14 +190,17 @@ class DataCollectorPlugin(
                 
                 a1 = values.get("adxl1", {"x": 0, "y": 0, "z": 0}) 
                 a2 = values.get("adxl2", {"x": 0, "y": 0, "z": 0})
-                writer.writerow([
+                row = [
                     frame_id,
                     "{:.6f}".format(timestamp),
                     a1["x"], a1["y"], a1["z"],  
                     a2["x"], a2["y"], a2["z"],
                     values.get("load_cell", 0),
                     filename
-                ])
+                ]
+
+                writer.writerow(row)
+                self._logger.info(f"output: {row}")
 
         except Exception:
             pass
