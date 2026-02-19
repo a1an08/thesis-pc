@@ -87,11 +87,11 @@ class DataCollectorPlugin(
         self._running = False
         self._readers = []
         self._data_lock = threading.Lock()
-              
+
         self._latest_data = { 
-            "adxl1": {"x": 0.0, "y": 0.0, "z": 0.0},
-            "adxl2": {"x": 0.0, "y": 0.0, "z": 0.0},
-            "load_cell": 0.0
+            "adxl1": [],
+            "adxl2": [],
+            "load_cell": []
         }
         
         #paths
@@ -150,73 +150,71 @@ class DataCollectorPlugin(
         while self._running:
             start_time = time.time()
             
-            # data snapshot
-            current_values = {}
-            with self._data_lock:
-                current_values = self._latest_data.copy()
-
-            self._check_and_capture(current_values)
+            self._check_and_capture()
 
             # calculate sleep needed for 2 second interval
             elapsed = time.time() - start_time
             sleep_time = 2.0 - elapsed
             if sleep_time > 0: time.sleep(sleep_time)
 
-    def _check_and_capture(self, values):
+    def _check_and_capture(self):
         # check printer state
         printer_data = self._printer.get_current_data()
         state = "Printing"#printer_data["state"]["text"]
         if state in ["Printing"]:
-            self._save_snapshot(values)
+            self._save_snapshot()
 
-    def _save_snapshot(self, values):
-        timestamp = time.time()
-        frame_id = int(timestamp * 1000)
-        filename = f"{frame_id}.jpg"
-        full_path = os.path.join(self._image_dir, filename)
+def _save_snapshot(self):
+        start_time = time.time()
+        filename = "ERROR_NOT_TAKEN.jpg"
         
-        camera_success = False
         try:
-            resp = requests.get(self._snapshot_url, timeout=2.0, stream=True)
+            resp = requests.get(self._snapshot_url, timeout=2.0)
             if resp.status_code == 200:
+                frame_id = int(start_time * 1000)
+                filename = f"{frame_id}.jpg"
+                full_path = os.path.join(self._image_dir, filename)
                 with open(full_path, "wb") as f:
                     f.write(resp.content)
-                camera_success = True
             else:
-                self._logger.error(f"Camera returned status code: {resp.status_code}")
-                filename = "ERROR_BAD_STATUS"
+                self._logger.error(f"Camera returned status: {resp.status_code}")
         except Exception as e:
             self._logger.error(f"Camera capture failed: {e}")
-            filename = "ERROR_CONNECTION"
 
-        with open(full_path, "wb") as f:
-            for chunk in resp.iter_content(chunk_size=4096):
-                f.write(chunk)
+        end_time = time.time()
+        midpoint_time = start_time + ((end_time - start_time) / 2.0)
+
+        a1_match = {"x": 0.0, "y": 0.0, "z": 0.0}
+        a2_match = {"x": 0.0, "y": 0.0, "z": 0.0}
+        load_match = {"val": 0.0}
+
+        with self._data_lock:
+            def get_closest(data_list, target_time, default_val):
+                if not data_list: return default_val
+                return min(data_list, key=lambda d: abs(d["ts"] - target_time))
+
+            a1_match = get_closest(self._latest_data["adxl1"], midpoint_time, a1_match)
+            a2_match = get_closest(self._latest_data["adxl2"], midpoint_time, a2_match)
+            load_match = get_closest(self._latest_data["load_cell"], midpoint_time, load_match)
 
         try:
             with open(self._csv_path, "a", newline="") as f:
                 writer = csv.writer(f)
-                
-                a1 = values.get("adxl1", {"x": 0, "y": 0, "z": 0}) 
-                a2 = values.get("adxl2", {"x": 0, "y": 0, "z": 0})
 
-                if not isinstance(a1, dict): a1 = {"x": 0, "y": 0, "z": 0}
-                if not isinstance(a2, dict): a2 = {"x": 0, "y": 0, "z": 0}
-                
                 row = [
-                    frame_id,
-                    "{:.6f}".format(timestamp),
-                    a1["x"], a1["y"], a1["z"],  
-                    a2["x"], a2["y"], a2["z"],
-                    values.get("load_cell", 0),
+                    int(midpoint_time * 1000), 
+                    "{:.6f}".format(midpoint_time),
+                    a1_match.get("x", 0), a1_match.get("y", 0), a1_match.get("z", 0),  
+                    a2_match.get("x", 0), a2_match.get("y", 0), a2_match.get("z", 0),
+                    load_match.get("val", 0),
                     filename
                 ]
 
                 writer.writerow(row)
-                self._logger.info(f"output: {row}")
+                self._logger.info(f"Synced row saved: {row}")
 
         except Exception as e:
-            self._logger.error(f"Failed to write to CSV Error: {e}")
+            self._logger.error(f"CRITICAL: Failed to write to CSV! Error: {e}")
 
 __plugin_name__ = "Data Collector"
 __plugin_pythoncompat__ = ">=3.7,<4"
