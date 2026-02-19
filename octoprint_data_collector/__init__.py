@@ -170,15 +170,24 @@ class DataCollectorPlugin(
             self._save_snapshot(values)
 
     def _save_snapshot(self, values):
-        try:
-            resp = requests.get(self._snapshot_url, timeout=2.0, stream=True)
-            if resp.status_code != 200: return
-        except: return
-
         timestamp = time.time()
         frame_id = int(timestamp * 1000)
         filename = f"{frame_id}.jpg"
         full_path = os.path.join(self._image_dir, filename)
+
+        try:
+            resp = requests.get(self._snapshot_url, timeout=2.0, stream=True)
+            if resp.status_code == 200:
+                with open(full_path, "wb") as f:
+                    for chunk in resp.iter_content(chunk_size=4096):
+                        f.write(chunk)
+                camera_success = True
+            else:
+                self._logger.error(f"Camera returned status code: {resp.status_code}")
+                filename = "ERROR_BAD_STATUS"
+        except Exception as e:
+            self._logger.error(f"Camera capture failed: {e}")
+            filename = "ERROR_CONNECTION"
 
         with open(full_path, "wb") as f:
             for chunk in resp.iter_content(chunk_size=4096):
@@ -203,7 +212,7 @@ class DataCollectorPlugin(
                 self._logger.info(f"output: {row}")
 
         except Exception:
-            pass
+            self._logger.error(f"Failed to write to CSV Error: {e}")
 
 __plugin_name__ = "Data Collector"
 __plugin_pythoncompat__ = ">=3.7,<4"
