@@ -174,13 +174,13 @@ class DataCollectorPlugin(
         frame_id = int(timestamp * 1000)
         filename = f"{frame_id}.jpg"
         full_path = os.path.join(self._image_dir, filename)
-
+        
+        camera_success = False
         try:
             resp = requests.get(self._snapshot_url, timeout=2.0, stream=True)
             if resp.status_code == 200:
                 with open(full_path, "wb") as f:
-                    for chunk in resp.iter_content(chunk_size=4096):
-                        f.write(chunk)
+                    f.write(resp.content)
                 camera_success = True
             else:
                 self._logger.error(f"Camera returned status code: {resp.status_code}")
