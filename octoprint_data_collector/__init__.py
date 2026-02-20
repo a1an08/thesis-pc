@@ -123,12 +123,18 @@ class DataCollectorPlugin(
 
         self._running = True
 
+        _, printer_port, _, _ = self._printer.get_current_connection()
+
         # auto find ports
         potential_ports = glob.glob('/dev/ttyACM*') + glob.glob('/dev/ttyUSB*')
         
         self._logger.info(f"Found USB ports: {potential_ports}")
 
         for port in potential_ports:
+            if port == printer_port:
+                self._logger.info(f"Skipping main printer port: {port}")
+                continue
+                
             reader = SerialSensorReader(
                 port=port,
                 shared_data=self._latest_data,
