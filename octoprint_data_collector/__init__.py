@@ -25,17 +25,34 @@ class SerialSensorReader(threading.Thread):
         self._logger.info(f"Checking port {self._port}...")
         ser = None
 
+        try:
+            ser = serial.Serial(self._port, 115200, timeout=1)
+            time.sleep(2) 
+
+            is_sensor = False
+            handshake_start = time.time()
+            
+            while time.time() - handshake_start < 3.0:
+                if ser.in_waiting > 0:
+                    line = ser.readline().decode('utf-8', errors='ignore').strip()
+                    if line.startswith('{') and '"id":' in line:
+                        is_sensor = True
+                        self._logger.info(f"Sensor verified on {self._port}!")
+                        break
+                time.sleep(0.05)
+
+            if not is_sensor:
+                self._logger.info(f"Port {self._port} is not a sensor. Releasing it for OctoPrint.")
+                ser.close()
+                return 
+                
+        except Exception as e:
+            self._logger.warning(f"Could not open {self._port}: {e}")
+            if ser: ser.close()
+            return
+
         while self._running:
             try:
-                # connect if not connected
-                if ser is None:
-                    try:
-                        ser = serial.Serial(self._port, 115200, timeout=1)
-                        time.sleep(2)
-                    except:
-                        time.sleep(5)
-                        continue
-
                 # read parse
                 if ser.in_waiting > 0:
                     try:
@@ -82,10 +99,11 @@ class SerialSensorReader(threading.Thread):
                 
                 time.sleep(0.01) # important 
 
-            except Exception:
-                if ser: ser.close()
-                ser = None
-                time.sleep(1)
+            except Exception as e:
+                self._logger.warning(f"Lost connection to sensor on {self._port}: {e}")
+                break 
+
+        if ser: ser.close()
 
     def stop(self):
         self._running = False
@@ -123,7 +141,7 @@ class DataCollectorPlugin(
 
         self._running = True
 
-        _, printer_port, _, _ = self._printer.get_current_connection()
+        _, printer_port, _, _ = '/dev/ttyACM0'#self._printer.get_current_connection()
 
         # auto find ports
         potential_ports = glob.glob('/dev/ttyACM*') + glob.glob('/dev/ttyUSB*')
