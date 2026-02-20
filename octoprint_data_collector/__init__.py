@@ -94,7 +94,8 @@ class DataCollectorPlugin(
     octoprint.plugin.StartupPlugin,
     octoprint.plugin.ShutdownPlugin,
     octoprint.plugin.SettingsPlugin,
-    octoprint.plugin.TemplatePlugin
+    octoprint.plugin.TemplatePlugin,
+    octoprint.plugin.EventHandlerPlugin
 ):
 
     def __init__(self):
@@ -117,22 +118,8 @@ class DataCollectorPlugin(
     def on_after_startup(self):
         # files
         self._base_dir = os.path.join(self.get_plugin_data_folder(), "data")
-        self._image_dir = os.path.join(self._base_dir, "images")
-        self._csv_path = os.path.join(self._base_dir, "log.csv")
-        
-        if not os.path.exists(self._image_dir): os.makedirs(self._image_dir)
-        
-        # csv header
-        if not os.path.exists(self._csv_path):
-            with open(self._csv_path, "w", newline="") as f:
-                writer = csv.writer(f)
-                writer.writerow([
-                "frame_id", "timestamp",
-                "adxl1_x", "adxl1_y", "adxl1_z", 
-                "adxl2_x", "adxl2_y", "adxl2_z",
-                "load_cell",
-                "filename"
-                ])
+        if not os.path.exists(self._base_dir): 
+            os.makedirs(self._base_dir)
 
         self._running = True
 
@@ -154,6 +141,31 @@ class DataCollectorPlugin(
         # camera thread
         self._camera_thread = threading.Thread(target=self._camera_loop, daemon=True)
         self._camera_thread.start()
+    
+    def on_event(self, event, payload):
+        if event == "PrintStarted":
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            print_name = payload.get("name", "unknown_print").replace(" ", "_")
+            
+            current_print_dir = os.path.join(self._base_dir, f"{timestamp}_{print_name}")
+            self._image_dir = os.path.join(current_print_dir, "images")
+            self._csv_path = os.path.join(current_print_dir, "log.csv")
+            
+            os.makedirs(self._image_dir, exist_ok=True)
+            
+            with open(self._csv_path, "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    "frame_id", "timestamp",
+                    "adxl1_x", "adxl1_y", "adxl1_z", 
+                    "adxl2_x", "adxl2_y", "adxl2_z",
+                    "load_cell", "filename"
+                ])
+                
+            self._logger.info(f"--- NEW PRINT STARTED: Saving data to {current_print_dir} ---")
+
+        elif event in ["PrintDone", "PrintFailed", "PrintCancelled"]:
+            self._logger.info(f"--- {event}: Stopped logging data ---")
 
     def on_shutdown(self):
         self._running = False
@@ -174,8 +186,8 @@ class DataCollectorPlugin(
     def _check_and_capture(self):
         # check printer state
         printer_data = self._printer.get_current_data()
-        state = "Printing"#printer_data["state"]["text"]
-        if state in ["Printing"]:
+        state = printer_data["state"]["text"]
+        if state in ["Printing"] and self._csv_path is not None:
             self._save_snapshot()
 
     def _save_snapshot(self):
@@ -221,7 +233,7 @@ class DataCollectorPlugin(
                     a1_match.get("x", 0), a1_match.get("y", 0), a1_match.get("z", 0),  
                     a2_match.get("x", 0), a2_match.get("y", 0), a2_match.get("z", 0),
                     load_match.get("val", 0),
-                    filename
+                    full_path
                 ]
 
                 writer.writerow(row)
