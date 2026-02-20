@@ -134,7 +134,7 @@ class DataCollectorPlugin(
             if port == printer_port:
                 self._logger.info(f"Skipping main printer port: {port}")
                 continue
-                
+
             reader = SerialSensorReader(
                 port=port,
                 shared_data=self._latest_data,
@@ -151,7 +151,10 @@ class DataCollectorPlugin(
     def on_event(self, event, payload):
         if event == "PrintStarted":
             timestamp = time.strftime("%Y%m%d_%H%M%S")
-            print_name = payload.get("name", "unknown_print").replace(" ", "_")
+
+            raw_name = payload.get("name", "unknown_print")            
+            clean_name, _ = os.path.splitext(raw_name)
+            print_name = clean_name.replace(" ", "_")
             
             current_print_dir = os.path.join(self._base_dir, f"{timestamp}_{print_name}")
             self._image_dir = os.path.join(current_print_dir, "images")
