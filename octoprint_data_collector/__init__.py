@@ -127,8 +127,10 @@ class DataCollectorPlugin(
 
         # auto find ports
         potential_ports = glob.glob('/dev/ttyACM*') + glob.glob('/dev/ttyUSB*')
+
         
         self._logger.info(f"Found USB ports: {potential_ports}")
+        self._logger.info(f"Found printer ports: {printer_port}")
 
         for port in potential_ports:
             if port == printer_port:
