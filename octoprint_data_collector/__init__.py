@@ -11,6 +11,7 @@ import requests
 import shutil
 import serial
 import glob
+import numpy as np
 
 class SerialSensorReader(threading.Thread):
     def __init__(self, port, shared_data, lock, logger):
@@ -40,8 +41,8 @@ class SerialSensorReader(threading.Thread):
                         self._logger.info(f"Sensor verified on {self._port}!")
                         break
                 time.sleep(0.05)
-
             if not is_sensor:
+
                 self._logger.info(f"Port {self._port} is not a sensor. Releasing it for OctoPrint.")
                 ser.close()
                 return 
@@ -126,6 +127,9 @@ class DataCollectorPlugin(
             "adxl2": [],
             "load_cell": []
         }
+
+        self._last_load_avg = 0.0
+        self._last_capture_time = time.time()
         
         #paths
         self._base_dir = None
@@ -161,6 +165,8 @@ class DataCollectorPlugin(
         self._camera_thread.start()
     
     def on_event(self, event, payload):
+        if payload is None:
+            return
         if event == "PrintStarted":
             timestamp = time.strftime("%Y%m%d_%H%M%S")
 
@@ -176,12 +182,12 @@ class DataCollectorPlugin(
             
             with open(self._csv_path, "w", newline="") as f:
                 writer = csv.writer(f)
-                writer.writerow([
-                    "frame_id", "timestamp",
-                    "adxl1_x", "adxl1_y", "adxl1_z", 
-                    "adxl2_x", "adxl2_y", "adxl2_z",
-                    "load_cell", "filename"
-                ])
+                headers = ["timestamp", "relative_img_path"]
+                for s in ["a1", "a2"]:
+                    for axis in ["x", "y", "z"]:
+                        headers += [f"{s}_{axis}_rms", f"{s}_{axis}_p2p", f"{s}_{axis}_std"]
+                headers += ["load_avg", "load_slope", "label"]
+                writer.writerow(headers)
                 
             self._logger.info(f"--- NEW PRINT STARTED: Saving data to {current_print_dir} ---")
 
@@ -212,56 +218,68 @@ class DataCollectorPlugin(
             self._save_snapshot()
 
     def _save_snapshot(self):
-        start_time = time.time()
-        filename = "ERROR_NOT_TAKEN.jpg"
-        
+        now_ms = int(time.time() * 1000)
+        now_sec = now_ms / 1000.0
+
+        time_diff = now_sec - self._last_capture_time
+
+        img_filename = "{}.jpg".format(now_ms)
+        relative_img_path = os.path.join("images", img_filename)
+
+        #get image snapshot
         try:
             resp = requests.get(self._snapshot_url, timeout=2.0)
             if resp.status_code == 200:
-                frame_id = int(start_time * 1000)
-                filename = f"{frame_id}.jpg"
-                full_path = os.path.join(self._image_dir, filename)
+                full_path = os.path.join(self._image_dir, img_filename)
                 with open(full_path, "wb") as f:
                     f.write(resp.content)
             else:
-                self._logger.error(f"Camera returned status: {resp.status_code}")
+                self._logger.error("Camera error: {}".format(resp.status_code))
         except Exception as e:
-            self._logger.error(f"Camera capture failed: {e}")
+            self._logger.error("Camera capture failed: {}".format(e))
 
-        end_time = time.time()
-        midpoint_time = start_time + ((end_time - start_time) / 2.0)
-
-        a1_match = {"x": 0.0, "y": 0.0, "z": 0.0}
-        a2_match = {"x": 0.0, "y": 0.0, "z": 0.0}
-        load_match = {"val": 0.0}
-
+        row_features = []
         with self._data_lock:
-            def get_closest(data_list, target_time, default_val):
-                if not data_list: return default_val
-                return min(data_list, key=lambda d: abs(d["ts"] - target_time))
+            for s_id in ["adxl1", "adxl2"]:
+                data_points = self._latest_data[s_id]
+                if len(data_points) > 5:
+                    for axis in ['x', 'y', 'z']:
+                        arr = np.array([d[axis] for d in data_points])
+                        
+                        # calculate adxl features
+                        rms = np.sqrt(np.mean(arr**2))
+                        p2p = np.ptp(arr) # Peak-to-Peak
+                        std = np.std(arr)
+                        row_features += [rms, p2p, std]
+                else:
+                    row_features += [0.0] * 9 # default to 0
 
-            a1_match = get_closest(self._latest_data["adxl1"], midpoint_time, a1_match)
-            a2_match = get_closest(self._latest_data["adxl2"], midpoint_time, a2_match)
-            load_match = get_closest(self._latest_data["load_cell"], midpoint_time, load_match)
+            #load cell features
+            load_points = self._latest_data["load_cell"]
+            if load_points:
+                vals = np.array([d['val'] for d in load_points])
+                current_load_avg = np.mean(vals)
+                load_slope = (current_load_avg - self._last_load_avg) / time_diff if time_diff > 0 else 0.0
+            else:
+                current_load_avg = 0.0
+                load_slope = 0.0
+            
+            row_features += [current_load_avg, load_slope]
+            self._last_load_avg = current_load_avg
 
+        # 3. Write to CSV (Matching your new headers)
         try:
-            with open(self._csv_path, "a", newline="") as f:
-                writer = csv.writer(f)
-
-                row = [
-                    int(midpoint_time * 1000), 
-                    "{:.6f}".format(midpoint_time),
-                    a1_match.get("x", 0), a1_match.get("y", 0), a1_match.get("z", 0),  
-                    a2_match.get("x", 0), a2_match.get("y", 0), a2_match.get("z", 0),
-                    load_match.get("val", 0),
-                    full_path
-                ]
-
-                writer.writerow(row)
-                self._logger.info(f"Synced row saved: {row}")
-
+            if self._csv_path:
+                with open(self._csv_path, "a", newline="") as f:
+                    writer = csv.writer(f)
+                    # Headers: timestamp, relative_img_path, (18 vibration features), load_avg, load_slope, label
+                    row = [now_ms, relative_img_path] + row_features + [0] 
+                    writer.writerow(row)
+                    self._logger.info("Row saved:[ {} ]".format(row))
         except Exception as e:
-            self._logger.error(f"CRITICAL: Failed to write to CSV! Error: {e}")
+            self._logger.error("CSV Write Failed: {}".format(e))
+        
+        self._last_capture_time = now_sec
 
 __plugin_name__ = "Data Collector"
 __plugin_pythoncompat__ = ">=3.7,<4"
