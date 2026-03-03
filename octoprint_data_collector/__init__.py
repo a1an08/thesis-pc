@@ -76,25 +76,19 @@ class SerialSensorReader(threading.Thread):
                                         "x": float(data.get("x", 0.0)), 
                                         "y": float(data.get("y", 0.0)), 
                                         "z": float(data.get("z", 0.0))
-                                    })
-                                    if len(self._shared_data["adxl1"]) > 100: self._shared_data["adxl1"].pop(0)
-                                    
+                                    })                                    
                                 elif sensor_id == "adxl2":
                                     self._shared_data["adxl2"].append({
                                         "ts": current_time, 
                                         "x": float(data.get("x", 0.0)), 
                                         "y": float(data.get("y", 0.0)), 
                                         "z": float(data.get("z", 0.0))
-                                    })
-                                    if len(self._shared_data["adxl2"]) > 100: self._shared_data["adxl2"].pop(0)
-                                    
+                                    })                                    
                                 elif sensor_id == "load":
                                     self._shared_data["load_cell"].append({
                                         "ts": current_time, 
                                         "val": float(data.get("val", 0.0))
-                                    })
-                                    if len(self._shared_data["load_cell"]) > 100: self._shared_data["load_cell"].pop(0)
-                                    
+                                    })                                    
                     except Exception as e:
                         self._logger.warning(f"Error processing sensor data: {e}")
                 
@@ -240,34 +234,49 @@ class DataCollectorPlugin(
 
         row_features = []
         with self._data_lock:
-            for s_id in ["adxl1", "adxl2"]:
-                data_points = self._latest_data[s_id]
-                if len(data_points) > 5:
-                    for axis in ['x', 'y', 'z']:
-                        arr = np.array([d[axis] for d in data_points])
-                        
-                        # calculate adxl features
-                        rms = np.sqrt(np.mean(arr**2))
-                        p2p = np.ptp(arr) # Peak-to-Peak
-                        std = np.std(arr)
-                        row_features += [rms, p2p, std]
-                else:
-                    row_features += [0.0] * 9 # default to 0
-
-            #load cell features
-            load_points = self._latest_data["load_cell"]
-            if load_points:
-                vals = np.array([d['val'] for d in load_points])
-                current_load_avg = np.mean(vals)
-                load_slope = (current_load_avg - self._last_load_avg) / time_diff if time_diff > 0 else 0.0
-            else:
-                current_load_avg = 0.0
-                load_slope = 0.0
+            current_adxl1 = self._latest_data["adxl1"][:]
+            current_adxl2 = self._latest_data["adxl2"][:]
+            current_load = self._latest_data["load_cell"][:]
             
-            row_features += [current_load_avg, load_slope]
-            self._last_load_avg = current_load_avg
+            self._latest_data["adxl1"].clear()
+            self._latest_data["adxl2"].clear()
+            self._latest_data["load_cell"].clear()
 
-        # 3. Write to CSV (Matching your new headers)
+        adxl_data_map = {"adxl1": current_adxl1, "adxl2": current_adxl2}
+        
+        for s_id in ["adxl1", "adxl2"]:
+            data_points = adxl_data_map[s_id]
+            if len(data_points) > 50:
+                for axis in ['x', 'y', 'z']:
+                    arr = np.array([d[axis] for d in data_points])
+                    
+                    # calculate adxl features
+                    rms = round(np.sqrt(np.mean(arr**2)), 4)
+                    p2p = np.ptp(arr) # Peak-to-Peak
+                    std = round(np.std(arr), 4)
+                    row_features += [rms, p2p, std]
+            else:
+                row_features += [np.nan] * 9 # default to Nan if not enough data
+        
+        #load cell features
+        current_load_avg = np.nan
+        load_slope = np.nan
+        
+        if len(current_load) > 50:
+            vals = np.array([d['val'] for d in current_load])
+            current_load_avg = np.mean(vals)
+            if self._last_load_avg is not None and not np.isnan(self._last_load_avg) and time_diff > 0:
+                load_slope = (current_load_avg - self._last_load_avg) / time_diff
+            else:
+                load_slope = np.nan
+
+        else:
+            current_load_avg = np.nan
+            load_slope = np.nan
+            
+        row_features += [round(current_load_avg, 4), round(load_slope, 4)]
+        self._last_load_avg = current_load_avg
+
         try:
             if self._csv_path:
                 with open(self._csv_path, "a", newline="") as f:
