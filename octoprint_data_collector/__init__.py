@@ -173,6 +173,14 @@ class DataCollectorPlugin(
             self._csv_path = os.path.join(current_print_dir, "log.csv")
             
             os.makedirs(self._image_dir, exist_ok=True)
+
+            with self._data_lock:
+                self._latest_data["adxl1"].clear()
+                self._latest_data["adxl2"].clear()
+                self._latest_data["load_cell"].clear()
+                self._last_load_avg = None 
+            
+            self._logger.info("Buffers flushed for new print.")
             
             with open(self._csv_path, "w", newline="") as f:
                 writer = csv.writer(f)
