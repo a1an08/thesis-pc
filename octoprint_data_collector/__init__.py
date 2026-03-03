@@ -262,7 +262,7 @@ class DataCollectorPlugin(
         current_load_avg = np.nan
         load_slope = np.nan
         
-        if len(current_load) > 50:
+        if len(current_load) > 2:
             vals = np.array([d['val'] for d in current_load])
             current_load_avg = np.mean(vals)
             if self._last_load_avg is not None and not np.isnan(self._last_load_avg) and time_diff > 0:
