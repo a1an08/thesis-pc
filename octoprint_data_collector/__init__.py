@@ -284,7 +284,8 @@ class DataCollectorPlugin(
                     # Headers: timestamp, relative_img_path, (18 vibration features), load_avg, load_slope, label
                     row = [now_ms, relative_img_path] + row_features + [0] 
                     writer.writerow(row)
-                    self._logger.info("Row saved:[ {} ]".format(row))
+                    self._logger.debug("Row saved:[ {} ]".format(row))
+                    self._logger.debug("number of data points used: a1: {}, a2: {}, load: {}".format(len(current_adxl1), len(current_adxl2), len(current_load)))
         except Exception as e:
             self._logger.error("CSV Write Failed: {}".format(e))
         
