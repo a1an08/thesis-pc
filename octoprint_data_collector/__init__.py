@@ -23,7 +23,7 @@ class SerialSensorReader(threading.Thread):
         self._running = True
 
     def run(self):
-        self._logger.info(f"Checking port {self._port}...")
+        self._logger.debug(f"Checking port {self._port}...")
         ser = None
 
         try:
@@ -38,12 +38,12 @@ class SerialSensorReader(threading.Thread):
                     line = ser.readline().decode('utf-8', errors='ignore').strip()
                     if line.startswith('{') and '"id":' in line:
                         is_sensor = True
-                        self._logger.info(f"Sensor verified on {self._port}!")
+                        self._logger.debug(f"Sensor verified on {self._port}!")
                         break
                 time.sleep(0.05)
             if not is_sensor:
 
-                self._logger.info(f"Port {self._port} is not a sensor. Releasing it for OctoPrint.")
+                self._logger.debug(f"Port {self._port} is not a sensor. Releasing it for OctoPrint.")
                 ser.close()
                 return 
                 
@@ -142,7 +142,7 @@ class DataCollectorPlugin(
         # auto find ports
         potential_ports = glob.glob('/dev/ttyACM*') + glob.glob('/dev/ttyUSB*')
 
-        self._logger.info(f"Found USB ports: {potential_ports}")
+        self._logger.debug(f"Found USB ports: {potential_ports}")
 
         for port in potential_ports:
             reader = SerialSensorReader(
@@ -182,7 +182,7 @@ class DataCollectorPlugin(
                 self._last_load_avg = None 
                 self._last_capture_time = time.time()
             
-            self._logger.info("Buffers flushed for new print.")
+            self._logger.debug("Buffers flushed for new print.")
             
             with open(self._csv_path, "w", newline="") as f:
                 writer = csv.writer(f)
@@ -193,10 +193,10 @@ class DataCollectorPlugin(
                 headers += ["load_avg", "load_slope"]
                 writer.writerow(headers)
                 
-            self._logger.info(f"--- NEW PRINT STARTED: Saving data to {current_print_dir} ---")
+            self._logger.debug(f"--- NEW PRINT STARTED: Saving data to {current_print_dir} ---")
 
         elif event in ["PrintDone", "PrintFailed", "PrintCancelled"]:
-            self._logger.info(f"--- {event}: Stopped logging data ---")
+            self._logger.debug(f"--- {event}: Stopped logging data ---")
 
     def on_shutdown(self):
         self._running = False
