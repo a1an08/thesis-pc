@@ -178,7 +178,9 @@ class DataCollectorPlugin(
                 self._latest_data["adxl1"].clear()
                 self._latest_data["adxl2"].clear()
                 self._latest_data["load_cell"].clear()
+
                 self._last_load_avg = None 
+                self._last_capture_time = time.time()
             
             self._logger.info("Buffers flushed for new print.")
             
@@ -188,7 +190,7 @@ class DataCollectorPlugin(
                 for s in ["a1", "a2"]:
                     for axis in ["x", "y", "z"]:
                         headers += [f"{s}_{axis}_rms", f"{s}_{axis}_p2p", f"{s}_{axis}_std"]
-                headers += ["load_avg", "load_slope", "label"]
+                headers += ["load_avg", "load_slope"]
                 writer.writerow(headers)
                 
             self._logger.info(f"--- NEW PRINT STARTED: Saving data to {current_print_dir} ---")
@@ -289,8 +291,8 @@ class DataCollectorPlugin(
             if self._csv_path:
                 with open(self._csv_path, "a", newline="") as f:
                     writer = csv.writer(f)
-                    # Headers: timestamp, relative_img_path, (18 vibration features), load_avg, load_slope, label
-                    row = [now_ms, relative_img_path] + row_features + [0] 
+                    # Headers: timestamp, relative_img_path, (18 vibration features), load_avg, load_slope
+                    row = [now_ms, relative_img_path] + row_features
                     writer.writerow(row)
                     self._logger.debug("Row saved:[ {} ]".format(row))
                     self._logger.debug("number of data points used: a1: {}, a2: {}, load: {}".format(len(current_adxl1), len(current_adxl2), len(current_load)))
