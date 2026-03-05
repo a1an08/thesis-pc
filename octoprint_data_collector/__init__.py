@@ -307,13 +307,15 @@ class DataCollectorPlugin(
         
         self._last_capture_time = now_sec
 
-    def hook_gcode_received(self, comm_instance, line, *args, **kwargs):
-        if "s" in line and "M998" in line:
-            _, _, after_s = line.partition("s")
-            extracted_number = after_s.strip()
+   def hook_gcode_received(self, comm_instance, line, *args, **kwargs):
+        if "M998" in line and "S" in line:
+            _, _, after_s = line.partition("S")
+        
+            extracted_number = after_s.strip()[:1]
             
             with self._data_lock:
                 self._latest_correction = extracted_number
+        
         return line
 
 __plugin_name__ = "Data Collector"
