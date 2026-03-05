@@ -180,7 +180,7 @@ class DataCollectorPlugin(
                 self._latest_data["adxl1"].clear()
                 self._latest_data["adxl2"].clear()
                 self._latest_data["load_cell"].clear()
-                self._latest_correction = ""
+                self._latest_correction = "0"
 
                 self._last_load_avg = None 
                 self._last_capture_time = time.time()
@@ -252,7 +252,7 @@ class DataCollectorPlugin(
             current_load = self._latest_data["load_cell"][:]
 
             current_correction = self._latest_correction
-            self._latest_correction = ""
+            self._latest_correction = "0"
             
             self._latest_data["adxl1"].clear()
             self._latest_data["adxl2"].clear()
