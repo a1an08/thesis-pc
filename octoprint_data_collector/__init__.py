@@ -252,7 +252,6 @@ class DataCollectorPlugin(
             current_load = self._latest_data["load_cell"][:]
 
             current_correction = self._latest_correction
-            self._latest_correction = "0"
             
             self._latest_data["adxl1"].clear()
             self._latest_data["adxl2"].clear()
