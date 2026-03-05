@@ -124,6 +124,8 @@ class DataCollectorPlugin(
 
         self._last_load_avg = 0.0
         self._last_capture_time = time.time()
+
+        self._latest_correction = ""
         
         #paths
         self._base_dir = None
@@ -178,6 +180,7 @@ class DataCollectorPlugin(
                 self._latest_data["adxl1"].clear()
                 self._latest_data["adxl2"].clear()
                 self._latest_data["load_cell"].clear()
+                self._latest_correction = ""
 
                 self._last_load_avg = None 
                 self._last_capture_time = time.time()
@@ -190,7 +193,7 @@ class DataCollectorPlugin(
                 for s in ["a1", "a2"]:
                     for axis in ["x", "y", "z"]:
                         headers += [f"{s}_{axis}_rms", f"{s}_{axis}_p2p", f"{s}_{axis}_std"]
-                headers += ["load_avg", "load_slope"]
+                headers += ["load_avg", "load_slope", "correction"]
                 writer.writerow(headers)
                 
             self._logger.debug(f"--- NEW PRINT STARTED: Saving data to {current_print_dir} ---")
@@ -247,6 +250,9 @@ class DataCollectorPlugin(
             current_adxl1 = self._latest_data["adxl1"][:]
             current_adxl2 = self._latest_data["adxl2"][:]
             current_load = self._latest_data["load_cell"][:]
+
+            current_correction = self._latest_correction
+            self._latest_correction = ""
             
             self._latest_data["adxl1"].clear()
             self._latest_data["adxl2"].clear()
@@ -284,7 +290,7 @@ class DataCollectorPlugin(
             current_load_avg = np.nan
             load_slope = np.nan
             
-        row_features += [round(current_load_avg, 4), round(load_slope, 4)]
+        row_features += [round(current_load_avg, 4), round(load_slope, 4), current_correction]
         self._last_load_avg = current_load_avg
 
         try:
@@ -301,6 +307,19 @@ class DataCollectorPlugin(
         
         self._last_capture_time = now_sec
 
+    def hook_gcode_received(self, comm_instance, line, *args, **kwargs):
+        if "s" in line and "M998" in line:
+            _, _, after_s = line.partition("s")
+            extracted_number = after_s.strip()
+            
+            with self._data_lock:
+                self._latest_correction = extracted_number
+        return line
+
 __plugin_name__ = "Data Collector"
 __plugin_pythoncompat__ = ">=3.7,<4"
 __plugin_implementation__ = DataCollectorPlugin()
+
+__plugin_hooks__ = {
+    "octoprint.comm.protocol.gcode.received": __plugin_implementation__.hook_gcode_received
+}
