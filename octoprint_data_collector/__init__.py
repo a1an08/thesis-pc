@@ -125,7 +125,7 @@ class DataCollectorPlugin(
         self._last_load_avg = 0.0
         self._last_capture_time = time.time()
 
-        self._latest_correction = ""
+        self._latest_correction = "0"
         
         #paths
         self._base_dir = None
