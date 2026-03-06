@@ -11,20 +11,20 @@ print("Loading data...")
 df = pd.read_csv("log.csv")
 
 # 0 normal
-df['collection'] = df['collection'].fillna(0).astype(int)
+df['correction'] = df['correction'].fillna(0).astype(int)
 
 df = df.ffill().fillna(0)
 
 print("Generating lag features...")
-sensor_cols = [col for col in df.columns if col not in ['timestamp', 'relative_img_path', 'collection']]
+sensor_cols = [col for col in df.columns if col not in ['timestamp', 'relative_img_path', 'correction']]
 
 for col in sensor_cols:
     df[f"{col}_lag1"] = df[col].shift(1)
 
 df = df.dropna()
 
-X = df.drop(columns=['timestamp', 'relative_img_path', 'collection'])
-y = df['collection']
+X = df.drop(columns=['timestamp', 'relative_img_path', 'correction'])
+y = df['correction']
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
