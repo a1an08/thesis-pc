@@ -1,0 +1,18 @@
+.data-collector-container .prediction-box {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #ddd;
+    margin-bottom: 20px;
+}
+
+.data-collector-container .prediction-box h1 {
+    margin: 0;
+    font-size: 3em;
+}
+
+/* Helper text colors */
+.text-success { color: #468847; }
+.text-error { color: #b94a48; }
+.muted { color: #999999; }
