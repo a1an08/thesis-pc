@@ -14,10 +14,10 @@ plugin_license = "AGPLv3"
 plugin_requires = [
     "pyserial",
     "numpy",
-    "requests",
-    "ultralytics",
-    "xgboost",
-    "pandas"
+    "requests"
+    # NOTE: The following must be installed manually on the Pi to avoid
+    # conflicting with OctoPrint's pinned dependencies:
+    #   pip install ultralytics xgboost
 ]
 
 plugin_additional_data = []
