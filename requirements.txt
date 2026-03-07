@@ -2,5 +2,5 @@ pyserial
 numpy
 requests
 ultralytics
-catboost
+onnxruntime
 pandas
