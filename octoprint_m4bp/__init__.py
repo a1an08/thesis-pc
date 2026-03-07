@@ -386,11 +386,11 @@ class DataCollectorPlugin(
                     std = round(np.std(arr), 4)
                     row_features += [rms, p2p, std]
             else:
-                row_features += [np.nan] * 9 # default to Nan if not enough data
+                row_features += [0.0] * 9 # default to 0.0 if not enough data
         
         #load cell features
-        current_load_avg = np.nan
-        load_slope = np.nan
+        current_load_avg = 0.0
+        load_slope = 0.0
         
         if len(current_load) > 2:
             vals = np.array([d['val'] for d in current_load])
@@ -398,11 +398,11 @@ class DataCollectorPlugin(
             if self._last_load_avg is not None and not np.isnan(self._last_load_avg) and time_diff > 0:
                 load_slope = (current_load_avg - self._last_load_avg) / time_diff
             else:
-                load_slope = np.nan
+                load_slope = 0.0
 
         else:
-            current_load_avg = np.nan
-            load_slope = np.nan
+            current_load_avg = 0.0
+            load_slope = 0.0
             
         row_features += [round(current_load_avg, 4), round(load_slope, 4)]
         self._last_load_avg = current_load_avg
@@ -425,6 +425,12 @@ class DataCollectorPlugin(
 
         row_features += yolo_features + [final_prediction, current_correction]
 
+        # Sanitize values for JSON (Websocket) - convert NaNs to 0.0 and numpy types to float
+        def sanitize(val):
+            if val is None or (isinstance(val, float) and (np.isnan(val) or np.isinf(val))):
+                return 0.0
+            return float(val)
+
         # Send websocket update for UI visualization
         try:
             self._plugin_manager.send_plugin_message(self._identifier, dict(
@@ -433,12 +439,12 @@ class DataCollectorPlugin(
                 prediction=final_prediction,
                 raw_prediction=raw_prediction,
                 yolo=dict(
-                    oextrusion=oextrusion_conf,
-                    uextrusion=uextrusion_conf,
-                    stringing=string_conf,
-                    spaghetti=spag_conf
+                    oextrusion=sanitize(oextrusion_conf),
+                    uextrusion=sanitize(uextrusion_conf),
+                    stringing=sanitize(string_conf),
+                    spaghetti=sanitize(spag_conf)
                 ),
-                load_avg=current_load_avg
+                load_avg=sanitize(current_load_avg)
             ))
         except Exception as e:
             self._logger.debug("Failed to send websocket message: {}".format(e))
