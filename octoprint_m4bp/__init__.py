@@ -20,9 +20,14 @@ except ImportError:
     YOLO = None
 
 try:
-    import joblib
+    import collections
 except ImportError:
-    joblib = None
+    pass
+
+try:
+    from catboost import CatBoostClassifier
+except ImportError:
+    CatBoostClassifier = None
 
 
 class SerialSensorReader(threading.Thread):
@@ -147,12 +152,16 @@ class DataCollectorPlugin(
         self._snapshot_url = "http://127.0.0.1:8080/?action=snapshot"
 
         self._yolo_model = None
-        self._xgb_model = None
+        self._cat_model = None
+
+        # Sliding window consensus: store last 5 raw predictions
+        self._prediction_window = collections.deque(maxlen=5)
+        self._last_confirmed_prediction = "None"
 
     def get_settings_defaults(self):
         return {
             "yolo_model_path": "",
-            "xgb_model_path": ""
+            "catboost_model_path": ""
         }
 
     def on_settings_save(self, data):
@@ -172,7 +181,7 @@ class DataCollectorPlugin(
 
     def _load_models(self):
         yolo_path = self._settings.get(["yolo_model_path"])
-        xgb_path = self._settings.get(["xgb_model_path"])
+        cat_path = self._settings.get(["catboost_model_path"])
 
         if yolo_path and os.path.exists(yolo_path) and YOLO is not None:
             self._logger.info(f"Loading YOLO model from {yolo_path}")
@@ -181,12 +190,30 @@ class DataCollectorPlugin(
             except Exception as e:
                 self._logger.error(f"Failed to load YOLO model: {e}")
         
-        if xgb_path and os.path.exists(xgb_path) and joblib is not None:
-            self._logger.info(f"Loading XGBoost model from {xgb_path}")
+        if cat_path and os.path.exists(cat_path) and CatBoostClassifier is not None:
+            self._logger.info(f"Loading CatBoost model from {cat_path}")
             try:
-                self._xgb_model = joblib.load(xgb_path)
+                self._cat_model = CatBoostClassifier()
+                self._cat_model.load_model(cat_path)
             except Exception as e:
-                self._logger.error(f"Failed to load XGBoost model: {e}")
+                self._logger.error(f"Failed to load CatBoost model: {e}")
+
+    def _get_consensus_prediction(self, raw_pred):
+        """Sliding Window Consensus: only confirm prediction if 4/5 recent ticks agree."""
+        self._prediction_window.append(str(raw_pred))
+
+        if len(self._prediction_window) < 5:
+            return "Warming up..."
+
+        # Count how many of the last 5 ticks agree on any one class
+        from collections import Counter
+        counts = Counter(self._prediction_window)
+        most_common_pred, count = counts.most_common(1)[0]
+
+        if count >= 4:
+            self._last_confirmed_prediction = most_common_pred
+
+        return self._last_confirmed_prediction
 
 
     def on_after_startup(self):
@@ -381,25 +408,29 @@ class DataCollectorPlugin(
 
         yolo_features = [oextrusion_conf, uextrusion_conf, string_conf, spag_conf]
         
-        xgb_prediction = "None"
-        if getattr(self, "_xgb_model", None) is not None:
+        raw_prediction = "None"
+        if getattr(self, "_cat_model", None) is not None:
             try:
-                # XGBoost input: adxl (18) + load (2) + yolo (4) = 24 features
+                # CatBoost input: adxl (18) + load (2) + yolo (4) = 24 features
                 # Matches training data: drops timestamp, relative_img_path, correction
                 features_array = np.array([row_features + yolo_features])
-                preds = self._xgb_model.predict(features_array)
-                xgb_prediction = str(preds[0])
+                preds = self._cat_model.predict(features_array)
+                raw_prediction = str(preds[0][0]) if hasattr(preds[0], '__len__') else str(preds[0])
             except Exception as e:
-                self._logger.error("XGBoost prediction failed: {}".format(traceback.format_exc()))
-        
-        row_features += yolo_features + [xgb_prediction, current_correction]
+                self._logger.error("CatBoost prediction failed: {}".format(traceback.format_exc()))
+
+        # Apply sliding window consensus to eliminate single-tick false alarms
+        final_prediction = self._get_consensus_prediction(raw_prediction)
+
+        row_features += yolo_features + [final_prediction, current_correction]
 
         # Send websocket update for UI visualization
         try:
             self._plugin_manager.send_plugin_message(self._identifier, dict(
                 type="live_data",
                 timestamp=now_ms,
-                prediction=xgb_prediction,
+                prediction=final_prediction,
+                raw_prediction=raw_prediction,
                 yolo=dict(
                     oextrusion=oextrusion_conf,
                     uextrusion=uextrusion_conf,

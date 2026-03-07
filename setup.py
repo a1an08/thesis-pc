@@ -5,7 +5,7 @@ plugin_identifier = "m4bp"
 plugin_package = "octoprint_m4bp"
 plugin_name = "m4bp"
 plugin_version = "0.1.0"
-plugin_description = """A plugin to collect and visualize sensor data and YOLO/XGBoost inference scores."""
+plugin_description = """A plugin to collect and visualize sensor data and YOLO/CatBoost inference scores."""
 plugin_author = "Alan Ocho"
 plugin_author_email = ""
 plugin_url = ""
@@ -16,8 +16,7 @@ plugin_requires = [
     "numpy",
     "requests",
     "ultralytics",
-    "joblib",
-    "xgboost",
+    "catboost",
     "pandas"
 ]
 

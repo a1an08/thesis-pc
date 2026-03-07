@@ -2,6 +2,5 @@ pyserial
 numpy
 requests
 ultralytics
-joblib
-xgboost
+catboost
 pandas
