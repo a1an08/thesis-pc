@@ -16,7 +16,7 @@ plugin_requires = [
     "numpy",
     "requests",
     "ultralytics",
-    "onnxruntime",
+    "xgboost",
     "pandas"
 ]
 

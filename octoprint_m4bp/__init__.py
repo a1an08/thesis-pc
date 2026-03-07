@@ -25,9 +25,9 @@ except ImportError:
     pass
 
 try:
-    import onnxruntime as rt
+    import xgboost as xgb
 except ImportError:
-    rt = None
+    xgb = None
 
 
 class SerialSensorReader(threading.Thread):
@@ -161,7 +161,7 @@ class DataCollectorPlugin(
     def get_settings_defaults(self):
         return {
             "yolo_model_path": "",
-            "onnx_model_path": ""
+            "xgb_model_path": ""
         }
 
     def on_settings_save(self, data):
@@ -181,7 +181,7 @@ class DataCollectorPlugin(
 
     def _load_models(self):
         yolo_path = self._settings.get(["yolo_model_path"])
-        onnx_path = self._settings.get(["onnx_model_path"])
+        xgb_path = self._settings.get(["xgb_model_path"])
 
         if yolo_path and os.path.exists(yolo_path) and YOLO is not None:
             self._logger.info(f"Loading YOLO model from {yolo_path}")
@@ -190,13 +190,14 @@ class DataCollectorPlugin(
             except Exception as e:
                 self._logger.error(f"Failed to load YOLO model: {e}")
         
-        if onnx_path and os.path.exists(onnx_path) and rt is not None:
-            self._logger.info(f"Loading ONNX model from {onnx_path}")
+        if xgb_path and os.path.exists(xgb_path) and xgb is not None:
+            self._logger.info(f"Loading XGBoost model from {xgb_path}")
             try:
-                self._cat_model = rt.InferenceSession(onnx_path)
-                self._logger.info(f"ONNX model loaded. Input: {self._cat_model.get_inputs()[0].name}")
+                self._cat_model = xgb.XGBClassifier()
+                self._cat_model.load_model(xgb_path)
+                self._logger.info("XGBoost model loaded successfully.")
             except Exception as e:
-                self._logger.error(f"Failed to load ONNX model: {e}")
+                self._logger.error(f"Failed to load XGBoost model: {e}")
 
     def _get_consensus_prediction(self, raw_pred):
         """Sliding Window Consensus: only confirm prediction if 4/5 recent ticks agree."""
@@ -411,16 +412,13 @@ class DataCollectorPlugin(
         raw_prediction = "None"
         if getattr(self, "_cat_model", None) is not None:
             try:
-                # ONNX Runtime inference
-                # Input: adxl (18) + load (2) + yolo (4) = 24 features as float32
-                import numpy as np
-                features_array = np.array([row_features + yolo_features], dtype=np.float32)
-                input_name = self._cat_model.get_inputs()[0].name
-                preds = self._cat_model.run(None, {input_name: features_array})
-                # ONNX output format: [[class_label]]
-                raw_prediction = str(preds[0][0])
+                # XGBoost input: adxl (18) + load (2) + yolo (4) = 24 features
+                # Matches training data: drops timestamp, relative_img_path, correction
+                features_array = np.array([row_features + yolo_features])
+                preds = self._cat_model.predict(features_array)
+                raw_prediction = str(preds[0])
             except Exception as e:
-                self._logger.error("ONNX inference failed: {}".format(traceback.format_exc()))
+                self._logger.error("XGBoost inference failed: {}".format(traceback.format_exc()))
 
         # Apply sliding window consensus to eliminate single-tick false alarms
         final_prediction = self._get_consensus_prediction(raw_prediction)
