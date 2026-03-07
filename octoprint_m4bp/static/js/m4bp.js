@@ -23,7 +23,7 @@ $(function() {
         });
 
         self.onDataUpdaterPluginMessage = function(plugin, data) {
-            if (plugin != "data_collector") {
+            if (plugin != "m4bp") {
                 return;
             }
 
@@ -46,6 +46,6 @@ $(function() {
     OCTOPRINT_VIEWMODELS.push({
         construct: DataCollectorViewModel,
         dependencies: ["settingsViewModel"],
-        elements: ["#tab_plugin_data_collector"]
+        elements: ["#tab_plugin_m4bp"]
     });
 });

@@ -1,0 +1,7 @@
+pyserial
+numpy
+requests
+ultralytics
+joblib
+xgboost
+pandas

@@ -161,13 +161,13 @@ class DataCollectorPlugin(
 
     def get_template_configs(self):
         return [
-            dict(type="tab", name="AI Data Collector", custom_bindings=True)
+            dict(type="tab", name="AI m4bp", custom_bindings=True)
         ]
 
     def get_assets(self):
         return {
-            "js": ["js/data_collector.js"],
-            "css": ["css/data_collector.css"]
+            "js": ["js/m4bp.js"],
+            "css": ["css/m4bp.css"]
         }
 
     def _load_models(self):
@@ -435,7 +435,7 @@ class DataCollectorPlugin(
         
         return line
 
-__plugin_name__ = "Data Collector"
+__plugin_name__ = "m4bp"
 __plugin_pythoncompat__ = ">=3.7,<4"
 __plugin_implementation__ = DataCollectorPlugin()
 
