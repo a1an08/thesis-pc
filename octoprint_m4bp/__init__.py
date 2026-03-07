@@ -120,7 +120,7 @@ class SerialSensorReader(threading.Thread):
     def stop(self):
         self._running = False
 
-class DataCollectorPlugin(
+class M4BPPlugin(
     octoprint.plugin.StartupPlugin,
     octoprint.plugin.ShutdownPlugin,
     octoprint.plugin.SettingsPlugin,
@@ -475,7 +475,7 @@ class DataCollectorPlugin(
 
 __plugin_name__ = "m4bp"
 __plugin_pythoncompat__ = ">=3.7,<4"
-__plugin_implementation__ = DataCollectorPlugin()
+__plugin_implementation__ = M4BPPlugin()
 
 __plugin_hooks__ = {
     "octoprint.comm.protocol.gcode.received": __plugin_implementation__.hook_gcode_received

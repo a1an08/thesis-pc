@@ -26,7 +26,7 @@ plugin_ignored_packages = []
 additional_setup_parameters = {}
 
 setup(
-    name="OctoPrint-DataCollector",
+    name="OctoPrint-m4bp",
     version=plugin_version,
     description=plugin_description,
     author=plugin_author,
