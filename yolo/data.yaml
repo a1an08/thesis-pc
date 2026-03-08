@@ -1,5 +1,5 @@
 # data.yaml
-path: /home/ubuntu/dataset # dataset root dir
+path: /home/ubuntu/cleanedData/yolo_pics # dataset root dir
 train: images/train
 val: images/val
 test: images/test # optional
