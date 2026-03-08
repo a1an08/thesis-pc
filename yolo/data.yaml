@@ -1,5 +1,5 @@
 # data.yaml
-path: ../dataset # dataset root dir (relative to yolo/yolo_train.ipynb)
+path: /home/ubuntu/dataset # dataset root dir
 train: images/train
 val: images/val
 test: images/test # optional
