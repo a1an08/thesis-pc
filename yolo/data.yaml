@@ -1,0 +1,12 @@
+# data.yaml
+path: ../dataset # dataset root dir (relative to yolo/yolo_train.ipynb)
+train: images/train
+val: images/val
+test: images/test # optional
+
+# Classes
+names:
+  0: under_extrusion
+  1: over_extrusion
+  2: stringing
+  3: spaghetti
