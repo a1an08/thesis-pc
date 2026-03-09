@@ -1,0 +1,190 @@
+/* ── OctoPrint Inference Plugin Styles ── */
+#plugin-inference-content {
+  padding: 1rem 0;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+.inf-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.inf-header h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.inf-status-pill {
+  padding: .25rem .85rem;
+  border-radius: 99px;
+  font-size: .85rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+/* ── Grid ── */
+.inf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.inf-span2 { grid-column: span 2; }
+@media (max-width: 600px) { .inf-span2 { grid-column: span 1; } }
+
+/* ── Card ── */
+.inf-card {
+  background: #1c2336;
+  border: 1px solid #2a3550;
+  border-radius: 12px;
+  padding: 1.1rem 1.2rem;
+  box-shadow: 0 2px 12px #0003;
+}
+
+.inf-card-title {
+  font-size: .72rem;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: .75rem;
+  font-weight: 600;
+}
+
+/* ── Webcam ── */
+.inf-webcam-wrap {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inf-webcam-wrap img {
+  width: 100%;
+  display: block;
+  border-radius: 8px;
+}
+
+/* ── Inference Badge ── */
+.inf-badge-large {
+  display: inline-block;
+  padding: .5rem 1.25rem;
+  border-radius: 99px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: .5px;
+  transition: background .3s;
+  margin-bottom: .25rem;
+}
+
+/* Badge variants — applied by KO binding */
+.badge-idle    { background: #1e293b !important; color: #94a3b8 !important; border: 1px solid #334155 !important; }
+.badge-normal  { background: #052e16 !important; color: #22c55e !important; border: 1px solid #22c55e !important; }
+.badge-warning { background: #451a03 !important; color: #f59e0b !important; border: 1px solid #f59e0b !important; }
+.badge-error   { background: #450a0a !important; color: #ef4444 !important; border: 1px solid #ef4444 !important; }
+
+/* ── Key-Value rows ── */
+.inf-kv-list { display: flex; flex-direction: column; }
+
+.inf-kv-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .35rem 0;
+  border-bottom: 1px solid #2a3550;
+}
+.inf-kv-row:last-child { border-bottom: none; }
+
+.inf-kv-key { color: #64748b; font-size: .83rem; }
+.inf-kv-val { font-weight: 600; font-size: .92rem; color: #e2e8f0; }
+
+/* Value colors */
+.inf-accent { color: #60a5fa !important; }
+.inf-green  { color: #4ade80 !important; }
+.inf-purple { color: #a78bfa !important; }
+.inf-orange { color: #fb923c !important; }
+.inf-yellow { color: #fbbf24 !important; }
+.inf-teal   { color: #34d399 !important; }
+
+/* ── Big value display ── */
+.inf-big-value {
+  font-size: 2.4rem;
+  font-weight: 900;
+  color: #fbbf24;
+  line-height: 1;
+  margin-top: .5rem;
+}
+.inf-big-unit {
+  font-size: .85rem;
+  color: #64748b;
+  margin-top: .15rem;
+}
+
+/* ── Toggle ── */
+.inf-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: .9rem;
+}
+
+.inf-toggle-wrap {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 28px;
+  flex-shrink: 0;
+}
+.inf-toggle-wrap input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.inf-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: #334155;
+  border-radius: 28px;
+  transition: .3s;
+}
+.inf-slider::before {
+  content: "";
+  position: absolute;
+  height: 20px; width: 20px;
+  left: 4px; bottom: 4px;
+  background: white;
+  border-radius: 50%;
+  transition: .3s;
+}
+.inf-toggle-wrap input:checked + .inf-slider { background: #3b82f6; }
+.inf-toggle-wrap input:checked + .inf-slider::before { transform: translateX(24px); }
+
+.inf-toggle-label { font-weight: 600; font-size: .95rem; }
+.inf-toggle-on  { color: #3b82f6; }
+.inf-toggle-off { color: #64748b; }
+
+/* ── Correction log ── */
+.inf-log-list {
+  max-height: 140px;
+  overflow-y: auto;
+  margin-top: .4rem;
+}
+.inf-log-item {
+  background: #0f172a;
+  border-left: 3px solid #3b82f6;
+  border-radius: 6px;
+  padding: .4rem .7rem;
+  margin-bottom: .35rem;
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+}
+.inf-log-time  { color: #64748b; font-size: .7rem; }
+.inf-log-desc  { color: #f59e0b; font-weight: 600; font-size: .8rem; }
+.inf-log-gcode { color: #60a5fa; font-family: monospace; font-size: .78rem; }

@@ -1,0 +1,125 @@
+<div id="plugin-inference-content">
+  <!-- Header row -->
+  <div class="inf-header">
+    <h2>🖨️ Live Print Inference</h2>
+    <div class="inf-status-pill" data-bind="css: inferenceBadgeClass, text: inferenceLabel"></div>
+  </div>
+
+  <!-- Main grid -->
+  <div class="inf-grid">
+
+    <!-- Webcam -->
+    <div class="inf-card inf-span2">
+      <div class="inf-card-title">📷 Webcam Feed</div>
+      <div class="inf-webcam-wrap">
+        <img id="inf-webcam" src="http://localhost:8080/?action=stream"
+             onerror="this.src='http://localhost:8080/?action=snapshot'"
+             alt="Webcam Feed" />
+      </div>
+    </div>
+
+    <!-- Inference Detail -->
+    <div class="inf-card">
+      <div class="inf-card-title">🧠 Inference</div>
+      <div class="inf-badge-large" data-bind="css: inferenceBadgeClass, text: inferenceLabel"></div>
+      <div class="inf-kv-list" style="margin-top:1rem">
+        <div class="inf-kv-row">
+          <span class="inf-kv-key">Class</span>
+          <span class="inf-kv-val" data-bind="text: inferenceClass"></span>
+        </div>
+        <div class="inf-kv-row">
+          <span class="inf-kv-key">Error Count</span>
+          <span class="inf-kv-val">
+            <span data-bind="text: persistenceCounter"></span>
+            / <span data-bind="text: persistenceThreshold"></span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADXL 1 -->
+    <div class="inf-card">
+      <div class="inf-card-title">📡 ADXL1 – Accelerometer 1</div>
+      <div class="inf-kv-list">
+        <div class="inf-kv-row">
+          <span class="inf-kv-key">X</span>
+          <span class="inf-kv-val inf-accent" data-bind="text: adxl1x"></span>
+        </div>
+        <div class="inf-kv-row">
+          <span class="inf-kv-key">Y</span>
+          <span class="inf-kv-val inf-green" data-bind="text: adxl1y"></span>
+        </div>
+        <div class="inf-kv-row">
+          <span class="inf-kv-key">Z</span>
+          <span class="inf-kv-val inf-purple" data-bind="text: adxl1z"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADXL 2 -->
+    <div class="inf-card">
+      <div class="inf-card-title">📡 ADXL2 – Accelerometer 2</div>
+      <div class="inf-kv-list">
+        <div class="inf-kv-row">
+          <span class="inf-kv-key">X</span>
+          <span class="inf-kv-val inf-orange" data-bind="text: adxl2x"></span>
+        </div>
+        <div class="inf-kv-row">
+          <span class="inf-kv-key">Y</span>
+          <span class="inf-kv-val inf-yellow" data-bind="text: adxl2y"></span>
+        </div>
+        <div class="inf-kv-row">
+          <span class="inf-kv-key">Z</span>
+          <span class="inf-kv-val inf-teal" data-bind="text: adxl2z"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Load Cell -->
+    <div class="inf-card">
+      <div class="inf-card-title">⚖️ Load Cell</div>
+      <div class="inf-big-value" data-bind="text: loadCell"></div>
+      <div class="inf-big-unit">N</div>
+    </div>
+
+    <!-- Correction Controls -->
+    <div class="inf-card inf-span2">
+      <div class="inf-card-title">🔧 Auto-Correction</div>
+      <div class="inf-toggle-row">
+        <label class="inf-toggle-wrap">
+          <input type="checkbox" id="inf-correction-toggle"
+                 data-bind="checked: correctionEnabled, event: { change: toggleCorrection }" />
+          <span class="inf-slider"></span>
+        </label>
+        <span class="inf-toggle-label" data-bind="text: correctionEnabled() ? 'Correction ON' : 'Correction OFF',
+              css: { 'inf-toggle-on': correctionEnabled, 'inf-toggle-off': !correctionEnabled() }">
+        </span>
+      </div>
+      <div class="inf-kv-list" style="margin-top:.75rem;">
+        <div class="inf-kv-row">
+          <span class="inf-kv-key">Last Correction</span>
+          <span class="inf-kv-val inf-yellow" data-bind="text: lastCorrection"></span>
+        </div>
+        <div class="inf-kv-row">
+          <span class="inf-kv-key">GCode Sent</span>
+          <span class="inf-kv-val" style="font-family:monospace;color:#60a5fa" data-bind="text: lastGCode"></span>
+        </div>
+        <div class="inf-kv-row">
+          <span class="inf-kv-key">Total Corrections</span>
+          <span class="inf-kv-val" data-bind="text: totalCorrections"></span>
+        </div>
+      </div>
+      <!-- Corrections log -->
+      <div class="inf-card-title" style="margin-top:1rem;">Correction History</div>
+      <div id="inf-correction-log" class="inf-log-list"
+           data-bind="foreach: correctionsLog">
+        <div class="inf-log-item">
+          <span class="inf-log-time" data-bind="text: time"></span>
+          <span class="inf-log-desc" data-bind="text: desc"></span>
+          <span class="inf-log-gcode" data-bind="text: gcode"></span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.inf-grid -->
+</div><!-- /#plugin-inference-content -->
